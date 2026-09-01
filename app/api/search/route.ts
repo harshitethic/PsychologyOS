@@ -1,0 +1,2 @@
+import {NextResponse} from "next/server";import {getSessionUser} from "@/lib/auth";import {db} from "@/lib/prisma";
+export async function GET(req:Request){const u=await getSessionUser();if(!u)return NextResponse.json([]);const q=new URL(req.url).searchParams.get("q")||"";if(!q.trim())return NextResponse.json([]);const t=await db.topic.findMany({where:{OR:[{title:{contains:q}},{description:{contains:q}},{detailedNotes:{contains:q}}]},include:{subject:true},take:20});return NextResponse.json(t.map(x=>({title:x.title,slug:x.slug,subject:x.subject.name})))}
