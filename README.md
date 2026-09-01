@@ -335,3 +335,32 @@ MIT License
 ```
 
 If you use the MIT License, add the standard MIT `LICENSE` file to the repository.
+## Screenshots
+
+### Landing page
+
+![PsychologyOS landing page](screenshots/home.png)
+
+### Authentication
+
+![PsychologyOS login](screenshots/login.png)
+
+### Student dashboard
+
+![PsychologyOS dashboard](screenshots/dashboard.png)
+
+### Topic learning
+
+![PsychologyOS topic view](screenshots/topic.png)
+
+### AI psychology tutor
+
+![PsychologyOS AI tutor](screenshots/ai-tutor.png)
+
+### Student community
+
+![PsychologyOS community](screenshots/community.png)
+
+### Mock exams
+
+![PsychologyOS mock exams](screenshots/mock-exams.png)
