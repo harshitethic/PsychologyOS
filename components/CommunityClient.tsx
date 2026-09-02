@@ -19,7 +19,6 @@ type Person = {
   lastActiveAt: string | null;
 };
 
-// Deterministic timestamps avoid server/client timezone hydration mismatches.
 export function CommunityClient({ initialMessages, initialPeople }: { initialMessages: Message[]; initialPeople: Person[] }) {
   const [messages, setMessages] = useState(initialMessages);
   const [input, setInput] = useState("");
@@ -30,6 +29,7 @@ export function CommunityClient({ initialMessages, initialPeople }: { initialMes
   const [hydrated, setHydrated] = useState(false);
   const [secondsToReset, setSecondsToReset] = useState(24 * 60 * 60);
   const bottom = useRef<HTMLDivElement>(null);
+  const isFirstMessageLoad = useRef(true);
 
   useEffect(() => {
     setHydrated(true);
@@ -50,8 +50,55 @@ export function CommunityClient({ initialMessages, initialPeople }: { initialMes
     return () => window.clearInterval(timer);
   }, [messages]);
 
+  // Poll the message endpoint so messages appear without a manual refresh.
+  // A short interval keeps the chat feeling live without requiring WebSockets.
   useEffect(() => {
-    const refresh = async () => {
+    let cancelled = false;
+
+    const refreshMessages = async () => {
+      if (document.visibilityState === "hidden") return;
+      try {
+        const r = await fetch("/api/community/messages", {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache" },
+        });
+        if (!r.ok || cancelled) return;
+        const data = await r.json();
+        const incoming: Message[] = data.messages || [];
+
+        setMessages(current => {
+          const currentById = new Map(current.map(message => [message.id, message]));
+          for (const message of incoming) currentById.set(message.id, message);
+          const merged = Array.from(currentById.values()).sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+
+          const changed = merged.length !== current.length || merged.some((message, index) => message.id !== current[index]?.id);
+          return changed ? merged : current;
+        });
+      } catch {
+        // Keep the existing chat visible if a background poll fails.
+      }
+    };
+
+    void refreshMessages();
+    const timer = window.setInterval(() => void refreshMessages(), 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated || isFirstMessageLoad.current) {
+      isFirstMessageLoad.current = false;
+      return;
+    }
+    bottom.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, hydrated]);
+
+  useEffect(() => {
+    const refreshPeople = async () => {
       try {
         const r = await fetch("/api/community/people", { cache: "no-store" });
         if (r.ok) {
@@ -61,14 +108,13 @@ export function CommunityClient({ initialMessages, initialPeople }: { initialMes
       } catch {}
     };
 
-    void refresh();
-    const timer = window.setInterval(() => { void refresh(); }, 30000);
+    void refreshPeople();
+    const timer = window.setInterval(() => { void refreshPeople(); }, 30000);
     return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
     if (!hydrated || secondsToReset > 0) return;
-
     const refreshWindow = async () => {
       try {
         const r = await fetch("/api/community/messages", { cache: "no-store" });
@@ -77,7 +123,6 @@ export function CommunityClient({ initialMessages, initialPeople }: { initialMes
         setMessages(data.messages || []);
       } catch {}
     };
-
     void refreshWindow();
   }, [hydrated, secondsToReset]);
 
@@ -106,16 +151,14 @@ export function CommunityClient({ initialMessages, initialPeople }: { initialMes
         return;
       }
 
-      setMessages(current => [
-        ...current,
-        {
-          id: data.message.id,
-          content: data.message.content,
-          createdAt: data.message.createdAt,
-          replyTo: replyTo ? { id: replyTo.id, content: replyTo.content, username: replyTo.user.username } : null,
-          user: data.message.user,
-        },
-      ]);
+      const sent: Message = {
+        id: data.message.id,
+        content: data.message.content,
+        createdAt: data.message.createdAt,
+        replyTo: replyTo ? { id: replyTo.id, content: replyTo.content, username: replyTo.user.username } : null,
+        user: data.message.user,
+      };
+      setMessages(current => current.some(message => message.id === sent.id) ? current : [...current, sent]);
       setInput("");
       setReplyTo(null);
     } catch {
