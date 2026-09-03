@@ -26,3 +26,6 @@ jobs:
 
       - name: Run project doctor
         run: npm run doctor
+
+      - name: Test health endpoint
+        run: npm run test:health
