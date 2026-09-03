@@ -18,6 +18,7 @@
     "admin:local": "node scripts/setup-admin-local.mjs",
     "test:system": "tsx scripts/test-system-flow.mjs",
     "test:learning-real": "tsx scripts/test-real-learning-flow.mjs",
+    "test:health": "tsx scripts/test-health-route.ts",
     "doctor": "node scripts/doctor.mjs"
   },
   "dependencies": {
