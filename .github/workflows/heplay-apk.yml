@@ -16,7 +16,7 @@ jobs:
         shell: bash
         run: |
           API="https://api.firestorage.ai/dev/file"
-          SHARE="W9vVipRtvtYf"
+          SHARE="TvyjyHKCh_4g"
           curl -L --fail -sS "$API/shares/$SHARE/files?maxResults=1000" -o /tmp/meta.json
           python3 - <<'PY' >/tmp/file_id
           import json
@@ -35,7 +35,7 @@ jobs:
           print(d['downloadUrl'])
           PY
           curl -L --fail -sS "$(cat /tmp/download_url)" -o /tmp/heplay.zip
-          echo "aaf395bd4f5dbcf2b5c5ef4aed682ba489068d4dfa4d7bac3b6f85fa96192069  /tmp/heplay.zip" | sha256sum -c -
+          echo "524870a30b07cc06b6f0fd012872ed22136664d39dacfd4962f1fc17e1bf3986  /tmp/heplay.zip" | sha256sum -c -
           unzip -tq /tmp/heplay.zip
 
       - name: Set up JDK 17
@@ -51,7 +51,7 @@ jobs:
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -n 1)"
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-37" "build-tools;36.0.0" "platform-tools"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
       - name: Set up Gradle 9.6
         uses: gradle/actions/setup-gradle@v4
@@ -73,13 +73,13 @@ jobs:
         run: |
           APK=/tmp/heplay-src/HEPlay/app/build/outputs/apk/debug/app-debug.apk
           test -f "$APK"
-          cp "$APK" /tmp/HEPlay-v0.2.2.apk
-          file /tmp/HEPlay-v0.2.2.apk
-          sha256sum /tmp/HEPlay-v0.2.2.apk
+          cp "$APK" /tmp/HEPlay-v0.2.3.apk
+          file /tmp/HEPlay-v0.2.3.apk
+          sha256sum /tmp/HEPlay-v0.2.3.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: HEPlay-v0.2.2-apk
-          path: /tmp/HEPlay-v0.2.2.apk
+          name: HEPlay-v0.2.3-apk
+          path: /tmp/HEPlay-v0.2.3.apk
           if-no-files-found: error
