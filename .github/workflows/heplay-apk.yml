@@ -35,42 +35,21 @@ jobs:
         with:
           gradle-version: "9.6.0"
 
-      - name: Inspect exact source share
+      - name: Resolve exact source download
         shell: bash
         run: |
-          curl -L --fail --silent --show-error "https://firestorage.ai/ja/f/W4ZQDyTJcAT1" -o /tmp/source-fetch
-          file /tmp/source-fetch
-          wc -c /tmp/source-fetch
-          sha256sum /tmp/source-fetch
-          if unzip -tq /tmp/source-fetch >/dev/null 2>&1; then
-            echo "DIRECT_ZIP=yes"
-          else
-            echo "DIRECT_ZIP=no"
-            strings /tmp/source-fetch | grep -Eo 'https?[^" <]+' | head -50 || true
-            strings /tmp/source-fetch | grep -Ei 'download|01a0bdb69080770ab98ca1f204a372a5|28NAkOf15YbSSeAL|W4ZQDyTJcAT1' | head -80 || true
-            exit 2
-          fi
+          PAGE="https://firestorage.ai/ja/f/W4ZQDyTJcAT1"
+          curl -L --fail -sS "$PAGE" -o /tmp/firestorage.html
+          JS_PATH="$(grep -oE '/_next/static/chunks/app/\(files\)/ja/f/page-[A-Za-z0-9]+\.js' /tmp/firestorage.html | head -1)"
+          test -n "$JS_PATH"
+          echo "bundle=$JS_PATH"
+          curl -L --fail -sS "https://firestorage.ai$JS_PATH" -o /tmp/firestorage.js
+          echo "--- download/api strings ---"
+          grep -oE '.{0,140}(download|/api/|shareId|publicId).{0,220}' /tmp/firestorage.js | head -100 || true
+          exit 2
 
       - name: Restore HEPlay source
-        run: |
-          rm -rf /tmp/heplay-src
-          mkdir -p /tmp/heplay-src
-          unzip -q /tmp/source-fetch -d /tmp/heplay-src
-          test -f /tmp/heplay-src/HEPlay/app/build.gradle.kts
+        run: echo placeholder
 
       - name: Build debug APK
-        working-directory: /tmp/heplay-src/HEPlay
-        run: gradle :app:assembleDebug --stacktrace --no-daemon
-
-      - name: Verify APK
-        run: |
-          test -f /tmp/heplay-src/HEPlay/app/build/outputs/apk/debug/app-debug.apk
-          cp /tmp/heplay-src/HEPlay/app/build/outputs/apk/debug/app-debug.apk /tmp/HEPlay-v0.2.apk
-          sha256sum /tmp/HEPlay-v0.2.apk
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: HEPlay-v0.2-apk
-          path: /tmp/HEPlay-v0.2.apk
-          if-no-files-found: error
+        run: echo placeholder
