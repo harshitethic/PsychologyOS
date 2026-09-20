@@ -9,16 +9,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect Firestorage client chunks
+      - name: Extract Firestorage endpoint logic
         run: |
           curl -L -sS "https://firestorage.ai/ja/f/W4ZQDyTJcAT1" -o /tmp/page
           grep -oE '/_next/static/chunks/[A-Za-z0-9_./()%-]+\.js' /tmp/page | sort -u > /tmp/paths
-          cat /tmp/paths
-          n=0
-          while read -r p; do
-            curl -L -sS "https://firestorage.ai$p" -o "/tmp/c$n.js" || true
-            n=$((n+1))
-          done < /tmp/paths
-          cat /tmp/c*.js > /tmp/all.js
-          grep -oE '.{0,120}(/api/|download|presign|signed|shareId|publicId|fileId).{0,220}' /tmp/all.js | head -200 || true
+          : > /tmp/all.js
+          while read -r p; do curl -L -sS "https://firestorage.ai$p" >> /tmp/all.js || true; done < /tmp/paths
+          python3 - <<'PY'
+          s=open('/tmp/all.js',errors='ignore').read()
+          for needle in ['shareEndpoint','async function v','/download','/shares/']:
+              print('\n===== '+needle+' =====')
+              start=0
+              for _ in range(5):
+                  i=s.find(needle,start)
+                  if i<0: break
+                  print(s[max(0,i-2500):i+4000])
+                  start=i+len(needle)
+          PY
           exit 2
