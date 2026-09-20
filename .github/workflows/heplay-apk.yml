@@ -16,13 +16,13 @@ jobs:
         shell: bash
         run: |
           API="https://api.firestorage.ai/dev/file"
-          SHARE="W4ZQDyTJcAT1"
+          SHARE="A7pdYzaJ2bY9"
           curl -L --fail -sS "$API/shares/$SHARE/files?maxResults=1000" -o /tmp/meta.json
           FILE_ID="$(python3 -c 'import json; d=json.load(open("/tmp/meta.json")); print(d["files"][0]["fileId"])')"
           curl -L --fail -sS -X POST "$API/shares/$SHARE/files/$FILE_ID/download" -o /tmp/download.json
           URL="$(python3 -c 'import json; print(json.load(open("/tmp/download.json"))["downloadUrl"])')"
           curl -L --fail -sS "$URL" -o /tmp/heplay.zip
-          echo "b60dd8e772313d6353b52b973816ab17d2df2dff2bf5d1a3dec747dc3f97b7d8  /tmp/heplay.zip" | sha256sum -c -
+          echo "5da8cb0e34567885de5791d636eafa92721377d83f6058155c5de14ce51c2230  /tmp/heplay.zip" | sha256sum -c -
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -62,12 +62,12 @@ jobs:
         run: |
           APK=/tmp/heplay-src/HEPlay/app/build/outputs/apk/debug/app-debug.apk
           test -f "$APK"
-          cp "$APK" /tmp/HEPlay-v0.2-modern.apk
-          sha256sum /tmp/HEPlay-v0.2-modern.apk
+          cp "$APK" /tmp/HEPlay-v0.2.1-modern.apk
+          sha256sum /tmp/HEPlay-v0.2.1-modern.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: HEPlay-v0.2-modern-apk
-          path: /tmp/HEPlay-v0.2-modern.apk
+          name: HEPlay-v0.2.1-modern-apk
+          path: /tmp/HEPlay-v0.2.1-modern.apk
           if-no-files-found: error
