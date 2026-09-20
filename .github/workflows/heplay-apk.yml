@@ -1,29 +1,85 @@
 name: HEPlay APK build
+
 on:
   push:
     branches: [heplay-apk-build]
     paths: [".github/workflows/heplay-apk.yml"]
   workflow_dispatch:
+
 jobs:
-  inspect:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Extract Firestorage external URLs
+
+      - name: Fetch exact HEPlay source archive
+        shell: bash
         run: |
-          curl -L -sS "https://firestorage.ai/ja/f/W4ZQDyTJcAT1" -o /tmp/page
-          grep -oE '/_next/static/chunks/[A-Za-z0-9_./()%-]+\.js' /tmp/page | sort -u > /tmp/paths
-          : > /tmp/all.js
-          while read -r p; do curl -L -sS "https://firestorage.ai$p" >> /tmp/all.js || true; done < /tmp/paths
-          python3 - <<'PY'
-          import re
-          s=open('/tmp/all.js',errors='ignore').read()
-          urls=sorted(set(re.findall(r'https?://[^"\\s<>]+',s)))
-          print('=== URLS ===')
-          for u in urls:
-              print(u[:1000])
-          print('=== FIRESTORAGE CONTEXT ===')
-          for m in re.finditer('firestorage',s,re.I):
-              print(s[max(0,m.start()-500):m.start()+900])
+          API="https://api.firestorage.ai/dev/file"
+          SHARE="W4ZQDyTJcAT1"
+          curl -L --fail -sS "$API/shares/$SHARE/files?maxResults=1000" -o /tmp/meta.json
+          python3 - <<'PY' >/tmp/file_id
+          import json
+          d=json.load(open('/tmp/meta.json'))
+          files=d.get('files') or []
+          if not files:
+              raise SystemExit('No source file in share')
+          print(files[0]['fileId'])
           PY
-          exit 2
+          FILE_ID="$(cat /tmp/file_id)"
+          echo "source file id=$FILE_ID"
+          curl -L --fail -sS -X POST "$API/shares/$SHARE/files/$FILE_ID/download" -o /tmp/download.json
+          python3 - <<'PY' >/tmp/download_url
+          import json
+          d=json.load(open('/tmp/download.json'))
+          print(d['downloadUrl'])
+          PY
+          curl -L --fail -sS "$(cat /tmp/download_url)" -o /tmp/heplay.zip
+          echo "b60dd8e772313d6353b52b973816ab17d2df2dff2bf5d1a3dec747dc3f97b7d8  /tmp/heplay.zip" | sha256sum -c -
+          unzip -tq /tmp/heplay.zip
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK 36
+        shell: bash
+        run: |
+          SDK_ROOT="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - name: Set up Gradle 9.6
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.6.0"
+
+      - name: Restore source
+        run: |
+          rm -rf /tmp/heplay-src
+          mkdir -p /tmp/heplay-src
+          unzip -q /tmp/heplay.zip -d /tmp/heplay-src
+          test -f /tmp/heplay-src/HEPlay/app/build.gradle.kts
+
+      - name: Build HEPlay debug APK
+        working-directory: /tmp/heplay-src/HEPlay
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Verify APK
+        run: |
+          APK=/tmp/heplay-src/HEPlay/app/build/outputs/apk/debug/app-debug.apk
+          test -f "$APK"
+          cp "$APK" /tmp/HEPlay-v0.2.apk
+          file /tmp/HEPlay-v0.2.apk
+          sha256sum /tmp/HEPlay-v0.2.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: HEPlay-v0.2-apk
+          path: /tmp/HEPlay-v0.2.apk
+          if-no-files-found: error
