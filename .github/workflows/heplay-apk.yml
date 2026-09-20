@@ -9,21 +9,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Extract Firestorage endpoint logic
+      - name: Resolve Firestorage API prefix
         run: |
-          curl -L -sS "https://firestorage.ai/ja/f/W4ZQDyTJcAT1" -o /tmp/page
-          grep -oE '/_next/static/chunks/[A-Za-z0-9_./()%-]+\.js' /tmp/page | sort -u > /tmp/paths
-          : > /tmp/all.js
-          while read -r p; do curl -L -sS "https://firestorage.ai$p" >> /tmp/all.js || true; done < /tmp/paths
-          python3 - <<'PY'
-          s=open('/tmp/all.js',errors='ignore').read()
-          for needle in ['shareEndpoint','async function v','/download','/shares/']:
-              print('\n===== '+needle+' =====')
-              start=0
-              for _ in range(5):
-                  i=s.find(needle,start)
-                  if i<0: break
-                  print(s[max(0,i-2500):i+4000])
-                  start=i+len(needle)
-          PY
+          SHARE="W4ZQDyTJcAT1"
+          for base in "" "/api" "/api/v1" "/api/public" "/api/files" "/api/file" "/api/download"; do
+            url="https://firestorage.ai$base/shares/$SHARE/files?maxResults=1000"
+            code=$(curl -L -sS -o /tmp/body -w "%{http_code}" "$url" || true)
+            echo "BASE=$base CODE=$code TYPE=$(file -b /tmp/body 2>/dev/null || true)"
+            head -c 1200 /tmp/body || true
+            echo
+            echo "-----"
+          done
           exit 2
