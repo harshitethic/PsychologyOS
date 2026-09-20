@@ -16,7 +16,7 @@ jobs:
         shell: bash
         run: |
           API="https://api.firestorage.ai/dev/file"
-          SHARE="NaaTsRtSJYzl"
+          SHARE="ejHcCH_ZuK3p"
           curl -L --fail -sS "$API/shares/$SHARE/files?maxResults=1000" -o /tmp/meta.json
           python3 - <<'PY' >/tmp/file_id
           import json
@@ -35,7 +35,7 @@ jobs:
           print(d['downloadUrl'])
           PY
           curl -L --fail -sS "$(cat /tmp/download_url)" -o /tmp/heplay.zip
-          echo "8b25cc1263e31958e4382e2dbc036ad8aee7de36831182c6ce3f63ab59780584  /tmp/heplay.zip" | sha256sum -c -
+          echo "365969a42f20b1f88dbd2f2f4121984dd76a6482f77c07be1723ebc00e82d777  /tmp/heplay.zip" | sha256sum -c -
           unzip -tq /tmp/heplay.zip
 
       - name: Set up JDK 17
@@ -73,13 +73,13 @@ jobs:
         run: |
           APK=/tmp/heplay-src/HEPlay/app/build/outputs/apk/debug/app-debug.apk
           test -f "$APK"
-          cp "$APK" /tmp/HEPlay-v0.4.0.apk
-          file /tmp/HEPlay-v0.4.0.apk
-          sha256sum /tmp/HEPlay-v0.4.0.apk
+          cp "$APK" /tmp/HEPlay-v0.4.1.apk
+          file /tmp/HEPlay-v0.4.1.apk
+          sha256sum /tmp/HEPlay-v0.4.1.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: HEPlay-v0.4.0-apk
-          path: /tmp/HEPlay-v0.4.0.apk
+          name: HEPlay-v0.4.1-apk
+          path: /tmp/HEPlay-v0.4.1.apk
           if-no-files-found: error
