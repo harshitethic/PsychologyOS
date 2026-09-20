@@ -27,7 +27,6 @@ jobs:
           SDK_ROOT="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -n 1)"
           test -n "$SDKMANAGER"
-          echo "Using $SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
@@ -36,12 +35,27 @@ jobs:
         with:
           gradle-version: "9.6.0"
 
+      - name: Inspect exact source share
+        shell: bash
+        run: |
+          curl -L --fail --silent --show-error "https://firestorage.ai/ja/f/W4ZQDyTJcAT1" -o /tmp/source-fetch
+          file /tmp/source-fetch
+          wc -c /tmp/source-fetch
+          sha256sum /tmp/source-fetch
+          if unzip -tq /tmp/source-fetch >/dev/null 2>&1; then
+            echo "DIRECT_ZIP=yes"
+          else
+            echo "DIRECT_ZIP=no"
+            strings /tmp/source-fetch | grep -Eo 'https?[^" <]+' | head -50 || true
+            strings /tmp/source-fetch | grep -Ei 'download|01a0bdb69080770ab98ca1f204a372a5|28NAkOf15YbSSeAL|W4ZQDyTJcAT1' | head -80 || true
+            exit 2
+          fi
+
       - name: Restore HEPlay source
         run: |
-          cat .heplay-build/src.part* | base64 -d > /tmp/heplay.zip
           rm -rf /tmp/heplay-src
           mkdir -p /tmp/heplay-src
-          unzip -q /tmp/heplay.zip -d /tmp/heplay-src
+          unzip -q /tmp/source-fetch -d /tmp/heplay-src
           test -f /tmp/heplay-src/HEPlay/app/build.gradle.kts
 
       - name: Build debug APK
