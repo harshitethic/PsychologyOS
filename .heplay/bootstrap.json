@@ -1,5 +1,5 @@
 {
-  "backend_url": "",
-  "admin_url": "",
-  "version": 1
+  "backend_url": "https://heplay-cloud.ethic-harshit.workers.dev",
+  "admin_url": "https://heplay-cloud.ethic-harshit.workers.dev/admin",
+  "version": 2
 }
