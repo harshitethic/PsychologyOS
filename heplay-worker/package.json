@@ -1,0 +1,22 @@
+{
+  "name": "heplay-cloud",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.102.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "ADMIN_PIN": {
+        "description": "Owner-only PIN for /admin. Enter 011105 if you want to keep the PIN you chose."
+      },
+      "CONFIG": {
+        "description": "Private KV storage for the global HEPlay Telegram app configuration."
+      }
+    }
+  }
+}
