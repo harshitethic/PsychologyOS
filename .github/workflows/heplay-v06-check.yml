@@ -1,0 +1,103 @@
+name: HEPlay v0.6 check
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches: [heplay-apk-build]
+    paths: [".github/workflows/heplay-v06-check.yml"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch exact HEPlay source archive
+        shell: bash
+        run: |
+          API="https://api.firestorage.ai/dev/file"
+          SHARE="0mxpv5ksn3rd"
+          curl -L --fail -sS "$API/shares/$SHARE/files?maxResults=1000" -o /tmp/meta.json
+          python3 - <<'PY' >/tmp/file_id
+          import json
+          d=json.load(open('/tmp/meta.json'))
+          files=d.get('files') or []
+          if not files:
+              raise SystemExit('No source file in share')
+          print(files[0]['fileId'])
+          PY
+          FILE_ID="$(cat /tmp/file_id)"
+          echo "source file id=$FILE_ID"
+          curl -L --fail -sS -X POST "$API/shares/$SHARE/files/$FILE_ID/download" -o /tmp/download.json
+          python3 - <<'PY' >/tmp/download_url
+          import json
+          d=json.load(open('/tmp/download.json'))
+          print(d['downloadUrl'])
+          PY
+          curl -L --fail -sS "$(cat /tmp/download_url)" -o /tmp/heplay.zip
+          echo "3446681f42a33b4fc0a46cb7a49c25af7a986130ec4ca2967fb3cd8ca9bb9941  /tmp/heplay.zip" | sha256sum -c -
+          unzip -tq /tmp/heplay.zip
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Restore stable HEPlay debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: heplay-debug-signing-key-v1
+
+      - name: Ensure HEPlay signing key exists
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.android"
+          if [ ! -f "$HOME/.android/debug.keystore" ]; then
+            keytool -genkeypair -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -dname "CN=HEPlay Dev,O=HEPlay,C=IN" -keyalg RSA -keysize 2048 -validity 10000
+          fi
+          keytool -list -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey | grep -E "Alias name|SHA256" || true
+
+      - name: Install Android SDK 36
+        shell: bash
+        run: |
+          SDK_ROOT="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+
+      - name: Set up Gradle 9.6
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.6.0"
+
+      - name: Restore source
+        run: |
+          rm -rf /tmp/heplay-src
+          mkdir -p /tmp/heplay-src
+          unzip -q /tmp/heplay.zip -d /tmp/heplay-src
+          test -f /tmp/heplay-src/HEPlay/app/build.gradle.kts
+
+      - name: Build HEPlay debug APK
+        working-directory: /tmp/heplay-src/HEPlay
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Verify APK
+        run: |
+          APK=/tmp/heplay-src/HEPlay/app/build/outputs/apk/debug/app-debug.apk
+          test -f "$APK"
+          cp "$APK" /tmp/HEPlay-v0.6.0.apk
+          file /tmp/HEPlay-v0.6.0.apk
+          sha256sum /tmp/HEPlay-v0.6.0.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: HEPlay-v0.6.0-apk
+          path: /tmp/HEPlay-v0.6.0.apk
+          if-no-files-found: error
