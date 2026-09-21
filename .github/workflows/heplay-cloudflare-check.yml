@@ -1,0 +1,26 @@
+name: HEPlay Cloudflare check
+
+on:
+  push:
+    branches: [heplay-cloudflare]
+    paths:
+      - "heplay-worker/**"
+      - ".github/workflows/heplay-cloudflare-check.yml"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: heplay-worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm install --no-audit --no-fund
+      - name: JavaScript syntax
+        run: node --check src/index.js
+      - name: Wrangler dry run
+        run: npx wrangler deploy --dry-run
