@@ -19,7 +19,7 @@ jobs:
         shell: bash
         run: |
           API="https://api.firestorage.ai/dev/file"
-          SHARE="0mxpv5ksn3rd"
+          SHARE="sIyx58UjzJaV"
           curl -L --fail -sS "$API/shares/$SHARE/files?maxResults=1000" -o /tmp/meta.json
           python3 - <<'PY' >/tmp/file_id
           import json
@@ -38,7 +38,7 @@ jobs:
           print(d['downloadUrl'])
           PY
           curl -L --fail -sS "$(cat /tmp/download_url)" -o /tmp/heplay.zip
-          echo "3446681f42a33b4fc0a46cb7a49c25af7a986130ec4ca2967fb3cd8ca9bb9941  /tmp/heplay.zip" | sha256sum -c -
+          echo "7795c8cd4118b489a0d9a37b5481b5d2205776fc5dae72b51cb141e7a70c70db  /tmp/heplay.zip" | sha256sum -c -
           unzip -tq /tmp/heplay.zip
 
       - name: Set up JDK 17
