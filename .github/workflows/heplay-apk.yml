@@ -107,7 +107,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
+          cp /tmp/HEPlay-v0.5.0.apk /tmp/HEPlay.apk
           gh release delete heplay-v0.5.0 --cleanup-tag -y || true
-          gh release create heplay-v0.5.0 /tmp/HEPlay-v0.5.0.apk#HEPlay.apk \
+          gh release create heplay-v0.5.0 /tmp/HEPlay.apk \
+            --target "$GITHUB_SHA" \
             --title "HEPlay v0.5.0" \
             --notes "HEPlay Fire TV baseline release. Future HEPlay builds reuse the same signing identity."
