@@ -6,8 +6,16 @@ import { db } from "./prisma";
 const COOKIE = "psy_admin_session";
 const TTL = 8 * 60 * 60;
 
+// Dev-only ephemeral fallback: deliberately changes on server restart.
+const devSessionSecret = crypto.randomBytes(32).toString("hex");
+
 function secret() {
-  return process.env.ADMIN_SESSION_SECRET || "psychology-os-local-admin-secret-change-me";
+  const configured = process.env.ADMIN_SESSION_SECRET;
+  if (configured && configured.length >= 32) return configured;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("ADMIN_SESSION_SECRET must be set to a unique 32+ character value");
+  }
+  return devSessionSecret;
 }
 function sign(payload: string) {
   return crypto.createHmac("sha256", secret()).update(payload).digest("hex");
@@ -40,11 +48,13 @@ export async function ensureAdminAccount() {
   let account = await db.adminAccount.findUnique({ where: { username } });
 
   if (!account) {
-    const passwordHash =
-      process.env.ADMIN_PASSWORD_HASH ||
-      (process.env.NODE_ENV !== "production"
-        ? await bcrypt.hash(process.env.ADMIN_PASSWORD || "hack2use.", 12)
-        : "");
+    let passwordHash = process.env.ADMIN_PASSWORD_HASH || "";
+    if (!passwordHash && process.env.NODE_ENV !== "production") {
+      const supplied = process.env.ADMIN_PASSWORD;
+      if (supplied && supplied.length >= 12) {
+        passwordHash = await bcrypt.hash(supplied, 12);
+      }
+    }
 
     if (!passwordHash) throw new Error("Admin account is not initialized.");
 

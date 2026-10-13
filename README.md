@@ -261,3 +261,31 @@ Psychology Student OS is an educational study tool. Its content and AI responses
 
 ### Mock exams
 ![PsychologyOS mock exams](screenshots/mock-exams.png)
+
+
+### Admin credential setup (security)
+
+Run admin setup explicitly with a **unique** password rather than relying on
+the insecure defaults found in earlier versions:
+
+```bash
+ADMIN_USERNAME=admin ADMIN_PASSWORD='a-unique-long-private-password' npm run admin:setup
+```
+
+The command writes only `ADMIN_PASSWORD_HASH` and a fresh
+`ADMIN_SESSION_SECRET` into the local ignored `.env`, preserving other entries.
+It uses a private, exclusive temporary file and atomic rename, refuses existing
+`.env` symlinks, and never prints the password or session secret. The legacy
+`npm run admin:local` command now uses the same secure provisioner. Run it
+from the project root. On systems without `O_NOFOLLOW`, use a supported
+filesystem/platform for credential provisioning.
+
+**Important:** Run credential setup before an initial admin login. Existing
+database admin accounts keep their stored password hash; rewriting `.env`
+does not silently reset that account. Change an existing password using the
+admin password workflow or a carefully planned database recovery procedure.
+
+Production requires a strong `ADMIN_SESSION_SECRET`; a missing or short secret
+now fails closed rather than using a predictable shared key. Development uses
+a random in-process fallback, which expires sessions on restart. Never publish
+`.env`, session cookies, database files or administrative credentials.

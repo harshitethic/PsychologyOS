@@ -24,6 +24,9 @@ jobs:
       - name: Run project checks
         run: npm run check
 
+      - name: Test local admin credential setup
+        run: npm run test:admin-setup
+
       - name: Run project doctor
         run: npm run doctor
 
