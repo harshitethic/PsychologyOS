@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const course = String(body.course || "").trim().slice(0, 120) || null;
   const yearNumber = body.year === "" || body.year == null ? null : Number(body.year);
-  const year = Number.isInteger(yearNumber) && yearNumber >= 1 && yearNumber <= 8 ? yearNumber : null;
+  const year = yearNumber !== null && Number.isInteger(yearNumber) && yearNumber >= 1 && yearNumber <= 8 ? yearNumber : null;
 
   const updated = await db.user.update({
     where: { id: user.id },
