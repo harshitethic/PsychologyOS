@@ -15,7 +15,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "New password must be at least 10 characters." }, { status: 400 });
   }
 
-  const account = await db.adminAccount.findUnique({ where: { username: session } });
+  // The signed admin session is a boolean; account identity is the configured username.
+  const account = await db.adminAccount.findUnique({
+    where: { username: process.env.ADMIN_USERNAME || "admin" },
+  });
   if (!account || !(await bcrypt.compare(currentPassword, account.passwordHash))) {
     return NextResponse.json({ error: "Current password is incorrect." }, { status: 401 });
   }

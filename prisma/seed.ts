@@ -19,6 +19,7 @@ type TopicSeed = {
   examFocus: string;
   commonMistakes: string;
   quickRevision: string;
+  mindMap?: { id: string; label: string; detail: string; level: number; parent?: string }[];
   flashcards: [string, string][];
   mcqs: { question: string; options: string[]; answerIndex: number; explanation: string; difficulty: string }[];
 };
@@ -806,7 +807,6 @@ const BLUEPRINTS: Record<string, {unit: string; topics: string[]; focus: string}
   "Cognitive Psychology": { unit:"Cognitive Processes", topics:["Attention","Perception","Working Memory","Long-Term Memory","Problem Solving","Language and Thinking"], focus:"Study information-processing models and recognize the limits of simplistic 'memory storage' metaphors." },
   "Introduction to Clinical Psychology": { unit:"Clinical Practice Foundations", topics:["Scope of Clinical Psychology","Clinical Interview","Case Formulation","Assessment and Diagnosis","Intervention Planning","Professional Ethics"], focus:"Distinguish assessment, diagnosis, formulation and intervention." },
   "Research Methods and Statistics - II": { unit:"Advanced Research Reasoning", topics:["Experimental Design","Inferential Statistics","Hypothesis Testing","Effect Size and Confidence Intervals","Quasi-Experimental Designs","Research Reporting"], focus:"Interpret statistical results with effect size, uncertainty and design limitations." },
-  "Stress Management": { unit:"Stress and Coping", topics:["What Is Stress?","Stress Appraisal","Coping Strategies","Physiological Stress Response","Resilience","Stress Management Planning"], focus:"Think in terms of appraisal, context, coping resources and sustainable behaviour change." },
   "Forensic Psychology": { unit:"Psychology and Law", topics:["Scope of Forensic Psychology","Eyewitness Memory","Criminal Behaviour","Risk Assessment","Psychology in Court","Ethical Limits"], focus:"Separate scientific psychological evidence from popular forensic stereotypes." },
   "Foundations of Social Psychology": { unit:"People in Social Context", topics:["Social Cognition","Attribution","Attitudes","Conformity and Obedience","Groups","Prejudice and Stereotyping"], focus:"Understand how social contexts shape judgement, behaviour and identity." },
   "Psychotherapy - II": { unit:"Advanced Therapeutic Approaches", topics:["Integrative Approaches","Trauma-Focused Work","Family and Systemic Approaches","Group Therapy","Relapse Prevention","Therapy Evaluation"], focus:"Compare indications, mechanisms and limits of different therapeutic approaches." },
@@ -1010,7 +1010,7 @@ function richTopic(
   unitTitle: string,
   title: string,
   focus: string
-): TopicSeed {
+): TopicSeed & { mindMap: NonNullable<TopicSeed["mindMap"]> } {
   const slug = `${subject}-${title}`.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
   const definitions: Record<string,string> = {
     "attention":"Attention is the selective allocation of limited cognitive processing resources.",
@@ -1269,7 +1269,8 @@ async function main() {
     }
   }
 
-  const people = [
+  type PsychologistSeed = [string, string, string, string, string[], string[]];
+  const people: PsychologistSeed[] = [
     ["Wilhelm Wundt","1832–1920","German psychologist and physiologist associated with the institutional development of experimental psychology and the Leipzig laboratory.","Experimental psychology",["Experimental psychology","Introspection"],["History of Psychology","Experimental Psychology"]],
     ["William James","1842–1910","American philosopher and psychologist associated with functionalism and influential work on consciousness and habit.","The Principles of Psychology",["Functionalism","Stream of consciousness"],["History of Psychology","Fundamentals of Psychology"]],
     ["Sigmund Freud","1856–1939","Austrian neurologist and founder of psychoanalysis; historically influential and strongly debated in contemporary psychology.","The Interpretation of Dreams",["Psychoanalysis","Unconscious processes"],["History of Psychology","Psychotherapy"]],
@@ -1305,7 +1306,7 @@ async function main() {
     });
   }
 
-  const extraPeople = [
+  const extraPeople: PsychologistSeed[] = [
     ["Erik Erikson","1902–1994","German-American developmental theorist associated with psychosocial development across the lifespan.","Childhood and Society",["Psychosocial stages","Identity"],["Developmental Psychology","Personality"]],
     ["Lawrence Kohlberg","1927–1987","American psychologist known for research on moral reasoning and stages of moral development.","The Philosophy of Moral Development",["Moral development","Moral reasoning"],["Developmental Psychology","Ethics"]],
     ["Harry Harlow","1905–1981","American psychologist known for influential and controversial studies of attachment and social isolation in rhesus monkeys.","The Nature of Love",["Attachment","Maternal contact"],["Developmental Psychology","Child Mental Health"]],
