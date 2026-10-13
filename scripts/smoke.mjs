@@ -11,6 +11,6 @@ http.get(url, (res) => {
     process.exitCode = ok ? 0 : 1;
   });
 }).on("error", (err) => {
-  console.error(`Smoke test failed: ${err.message}`);
+  console.error("Smoke test failed: could not reach the configured server");
   process.exitCode = 1;
 });
