@@ -20,7 +20,8 @@
     "test:system": "tsx scripts/test-system-flow.mjs",
     "test:learning-real": "tsx scripts/test-real-learning-flow.mjs",
     "test:health": "tsx scripts/test-health-route.ts",
-    "doctor": "node scripts/doctor.mjs"
+    "doctor": "node scripts/doctor.mjs",
+    "test:prisma-dependency": "node --test scripts/tests/prisma-dependency.test.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.15.0",
@@ -42,6 +43,9 @@
     "typescript": "^5.7.2"
   },
   "overrides": {
-    "postcss": "8.5.30"
+    "postcss": "8.5.30",
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.2"
+    }
   }
 }

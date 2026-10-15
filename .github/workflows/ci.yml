@@ -27,6 +27,12 @@ jobs:
       - name: Test local admin credential setup
         run: npm run test:admin-setup
 
+      - name: Test Prisma dependency compatibility and recursion safety
+        run: npm run test:prisma-dependency
+
+      - name: Audit dependency tree
+        run: npm audit --audit-level=high
+
       - name: Run project doctor
         run: npm run doctor
 
