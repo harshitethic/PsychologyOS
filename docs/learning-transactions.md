@@ -22,6 +22,15 @@ and promotion helpers require the transaction client so they do not accidentally
 write through a separate database connection. HTTP success is returned only
 after the transaction completes.
 
+The first independent CI run exposed transaction stalls under concurrent HTTP
+requests despite a successful local run. The application now shares one Prisma
+client across production route bundles and enforces a single SQLite connection
+per Node process, including when the configured URL requests a larger pool.
+This queues local database work instead of making multiple connections compete
+for SQLite's writer lock. Other URL options and the database file stay intact.
+Separate Node processes still have separate clients; this is not a distributed
+admission controller.
+
 The transaction has a five-second acquisition budget and a five-second execution
 budget. A database/transaction failure returns a generic HTTP 503. Nothing from
 the database exception is reflected to the caller. Invalid answer indexes or

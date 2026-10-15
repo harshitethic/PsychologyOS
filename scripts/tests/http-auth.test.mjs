@@ -23,7 +23,9 @@ const serverScript = `
 test("production HTTP authentication and learning boundaries", { timeout: 180_000 }, async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "psychology-http-test-"));
   const database = path.join(root, "fixture.db");
-  const url = `file:${database}`;
+  // Exercise the application's single-writer policy even when the caller
+  // supplies a larger connection pool in DATABASE_URL.
+  const url = `file:${database}?connection_limit=2`;
   const adminPassword = randomBytes(20).toString("hex");
   const studentPassword = randomBytes(20).toString("hex");
   const env = {
