@@ -149,6 +149,7 @@ npm run doctor       # Validate key project files and environment configuration
 npm run smoke        # Run a local HTTP smoke test against the running app
 npm run check        # Run the project's type-checking verification
 npm run test:seed-preservation # Exercise reseeding and rollback in disposable SQLite
+npm run test:http-auth # After build: verify real HTTP auth against disposable SQLite
 ```
 
 ## Project structure
@@ -218,6 +219,11 @@ npm run smoke
 ## Security notes
 
 This project is primarily an educational/full-stack development project. Before operating it as a large public service, add production-grade rate limiting, stricter request validation, AI abuse prevention, centralized logging, stronger session management, secure secret management, and more comprehensive automated tests.
+
+Production HTTP tests now verify student identity boundaries and admin session
+revocation after password changes or account deletion. See the
+[authentication design, reproduction and remaining limits](docs/http-authentication.md).
+Deploying this session-format update requires existing admins to sign in again.
 
 Never commit secrets such as:
 

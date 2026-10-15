@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     }
 
     attempts.delete(key);
-    await setAdminSession(account.username);
+    await setAdminSession(account);
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Admin account is not initialized." }, { status: 500 });

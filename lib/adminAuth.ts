@@ -5,6 +5,7 @@ import { db } from "./prisma";
 
 const COOKIE = "psy_admin_session";
 const TTL = 8 * 60 * 60;
+type AdminSessionAccount = { id: string; username: string; passwordHash: string };
 
 // Dev-only ephemeral fallback: deliberately changes on server restart.
 const devSessionSecret = crypto.randomBytes(32).toString("hex");
@@ -17,30 +18,38 @@ function secret() {
   }
   return devSessionSecret;
 }
-function sign(payload: string) {
-  return crypto.createHmac("sha256", secret()).update(payload).digest("hex");
+function sign(payload: string, account: AdminSessionAccount) {
+  // Bind sessions to current credentials without exposing the password hash in
+  // the cookie. Password rotation invalidates every previously issued token.
+  return crypto.createHmac("sha256", secret())
+    .update(JSON.stringify(["admin-session-v2", payload, account.id, account.passwordHash])).digest("hex");
 }
 
-export function createAdminToken(username: string) {
+export function createAdminToken(account: AdminSessionAccount) {
   const exp = Math.floor(Date.now() / 1000) + TTL;
-  const payload = `${username}.${exp}`;
-  return `${payload}.${sign(payload)}`;
+  const payload = `${account.username}.${exp}`;
+  return `${payload}.${sign(payload, account)}`;
 }
 
-export function verifyAdminToken(token?: string) {
+export function verifyAdminToken(token: string | undefined, account: AdminSessionAccount) {
   if (!token) return false;
   const parts = token.split(".");
-  if (parts.length !== 3) return false;
+  if (parts.length < 3) return false;
 
-  const [username, expText, mac] = parts;
+  const mac = parts.pop()!;
+  const expText = parts.pop()!;
+  // Credential setup accepts dots in usernames. The final two fields alone
+  // are the expiry and MAC; preceding dots belong to the username.
+  const username = parts.join(".");
   const exp = Number(expText);
-  const expected = sign(`${username}.${exp}`);
+  if (username !== account.username) return false;
+  if (!Number.isSafeInteger(exp) || exp <= Math.floor(Date.now() / 1000)) return false;
+  // Character length alone is not byte length: multibyte input otherwise makes
+  // timingSafeEqual throw. Require the exact encoding emitted by the signer.
+  if (!/^[a-f0-9]{64}$/.test(mac)) return false;
+  const expected = sign(`${username}.${exp}`, account);
 
-  if (username !== (process.env.ADMIN_USERNAME || "admin")) return false;
-  if (!Number.isFinite(exp) || exp < Math.floor(Date.now() / 1000)) return false;
-  if (mac.length !== expected.length) return false;
-
-  return crypto.timingSafeEqual(Buffer.from(mac), Buffer.from(expected));
+  return crypto.timingSafeEqual(Buffer.from(mac, "hex"), Buffer.from(expected, "hex"));
 }
 
 export async function ensureAdminAccount() {
@@ -68,12 +77,18 @@ export async function ensureAdminAccount() {
 
 export async function getAdminSession() {
   const store = await cookies();
-  return verifyAdminToken(store.get(COOKIE)?.value);
+  const token = store.get(COOKIE)?.value;
+  if (!token) return false;
+  const account = await db.adminAccount.findUnique({
+    where: { username: process.env.ADMIN_USERNAME || "admin" },
+    select: { id: true, username: true, passwordHash: true },
+  });
+  return account ? verifyAdminToken(token, account) : false;
 }
 
-export async function setAdminSession(username: string) {
+export async function setAdminSession(account: AdminSessionAccount) {
   const store = await cookies();
-  store.set(COOKIE, createAdminToken(username), {
+  store.set(COOKIE, createAdminToken(account), {
     httpOnly: true,
     sameSite: "strict",
     secure: process.env.NODE_ENV === "production",

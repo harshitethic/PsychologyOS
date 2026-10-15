@@ -22,7 +22,8 @@
     "test:health": "tsx scripts/test-health-route.ts",
     "doctor": "node scripts/doctor.mjs",
     "test:prisma-dependency": "node --test scripts/tests/prisma-dependency.test.mjs",
-    "test:seed-preservation": "node --import tsx --test scripts/tests/seed-preservation.test.mjs"
+    "test:seed-preservation": "node --import tsx --test scripts/tests/seed-preservation.test.mjs",
+    "test:http-auth": "node --test scripts/tests/http-auth.test.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.15.0",
