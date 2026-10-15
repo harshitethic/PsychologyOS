@@ -1,5 +1,6 @@
 
 import { PrismaClient } from "@prisma/client";
+import { ensureMockQuestions, ensureTopicResources } from "./seed-resources";
 
 const db = new PrismaClient();
 
@@ -1145,14 +1146,7 @@ async function seedFullCurriculum(courseId: string) {
           }
         });
 
-        await db.flashcard.deleteMany({ where:{topicId:topic.id} });
-        for (const [front,back] of t.flashcards) {
-          await db.flashcard.create({ data:{topicId:topic.id,front,back} });
-        }
-        await db.mCQ.deleteMany({ where:{topicId:topic.id} });
-        for (const m of t.mcqs) {
-          await db.mCQ.create({data:{topicId:topic.id,...m}});
-        }
+        await ensureTopicResources(db, topic.id, t.flashcards, t.mcqs);
       }
     }
   }
@@ -1258,15 +1252,7 @@ async function main() {
       }
     });
 
-    await db.flashcard.deleteMany({ where: { topicId: topic.id } });
-    for (const [front, back] of t.flashcards) {
-      await db.flashcard.create({ data: { topicId: topic.id, front, back } });
-    }
-
-    await db.mCQ.deleteMany({ where: { topicId: topic.id } });
-    for (const m of t.mcqs) {
-      await db.mCQ.create({ data: { topicId: topic.id, ...m } });
-    }
+    await ensureTopicResources(db, topic.id, t.flashcards, t.mcqs);
   }
 
   type PsychologistSeed = [string, string, string, string, string[], string[]];
@@ -1345,27 +1331,8 @@ async function main() {
     });
   }
 
-  const allMcqs = await db.mCQ.findMany({
-    where: { topic: { subject: { semesterId: semester1.id } } },
-    take: 45
-  });
-
-  const exam = await db.mockExam.upsert({
-    where: { id: "semester-1-mock-1" },
-    update: { title: "Semester 1 Mock Paper 1", durationMin: 15 },
-    create: { id: "semester-1-mock-1", title: "Semester 1 Mock Paper 1", durationMin: 15, semesterId: semester1.id }
-  });
-
-  await db.mockQuestion.deleteMany({ where: { examId: exam.id } });
-  for (let i = 0; i < allMcqs.length; i++) {
-    await db.mockQuestion.create({
-      data: { examId: exam.id, mcqId: allMcqs[i].id, order: i + 1 }
-    });
-  }
-
-
-  // Create three mock papers per semester. Questions are sampled from that
-  // semester's published study topics; no placeholder exam screens.
+  // Initialize five mock papers per semester from published study topics.
+  // Existing papers keep their question identities and ordering.
   for (let n = 1; n <= 6; n++) {
     const semester = await db.semester.findFirst({ where:{ number:n, year:{courseId:course.id} } });
     if (!semester) continue;
@@ -1376,18 +1343,15 @@ async function main() {
 
     for (let paper = 1; paper <= 5; paper++) {
       const examId = `semester-${n}-mock-${paper}`;
-      const exam = await db.mockExam.upsert({
+      await db.mockExam.upsert({
         where:{id:examId},
         update:{title:`Semester ${n} Mock Paper ${paper}`,durationMin:15},
         create:{id:examId,title:`Semester ${n} Mock Paper ${paper}`,durationMin:15,semesterId:semester.id}
       });
-      await db.mockQuestion.deleteMany({where:{examId}});
       const startAt = ((paper - 1) * 45) % Math.max(1, semesterMcqs.length);
       const ordered = [...semesterMcqs.slice(startAt), ...semesterMcqs.slice(0, startAt)];
       const picked = ordered.slice(0, 45);
-      for (let i=0;i<picked.length;i++) {
-        await db.mockQuestion.create({data:{examId,mcqId:picked[i].id,order:i+1}});
-      }
+      await ensureMockQuestions(db, examId, picked.map((question) => question.id));
     }
   }
 
