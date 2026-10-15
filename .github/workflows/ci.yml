@@ -44,3 +44,6 @@ jobs:
 
       - name: Build production application
         run: npm run build
+
+      - name: Test production HTTP authentication and learning isolation
+        run: npm run test:http-auth

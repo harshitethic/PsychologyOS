@@ -23,10 +23,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Current password is incorrect." }, { status: 401 });
   }
 
-  await db.adminAccount.update({
-    where: { id: account.id },
+  // A concurrent password rotation must not overwrite newer credentials after
+  // this request has checked the old password.
+  const changed = await db.adminAccount.updateMany({
+    where: { id: account.id, passwordHash: account.passwordHash },
     data: { passwordHash: await bcrypt.hash(newPassword, 12) },
   });
+  if (changed.count !== 1) {
+    return NextResponse.json({ error: "Credentials changed. Sign in again." }, { status: 401 });
+  }
 
   await clearAdminSession();
   return NextResponse.json({ ok: true, message: "Password changed. Sign in again." });
