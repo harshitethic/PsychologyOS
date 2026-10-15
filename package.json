@@ -21,7 +21,8 @@
     "test:learning-real": "tsx scripts/test-real-learning-flow.mjs",
     "test:health": "tsx scripts/test-health-route.ts",
     "doctor": "node scripts/doctor.mjs",
-    "test:prisma-dependency": "node --test scripts/tests/prisma-dependency.test.mjs"
+    "test:prisma-dependency": "node --test scripts/tests/prisma-dependency.test.mjs",
+    "test:seed-preservation": "node --import tsx --test scripts/tests/seed-preservation.test.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.15.0",

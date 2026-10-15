@@ -103,6 +103,11 @@ Seed the psychology content:
 npm run db:seed
 ```
 
+Reseeding preserves existing question/card IDs and student history. Changed
+resources are added without deleting their predecessors; existing mock papers
+keep their questions and order. Read the [seeding and recovery boundaries](docs/curriculum-seeding.md)
+before updating an installation with learners.
+
 Start the app:
 
 ```bash
@@ -143,6 +148,7 @@ npm run verify       # Generate Prisma client and type-check the project
 npm run doctor       # Validate key project files and environment configuration
 npm run smoke        # Run a local HTTP smoke test against the running app
 npm run check        # Run the project's type-checking verification
+npm run test:seed-preservation # Exercise reseeding and rollback in disposable SQLite
 ```
 
 ## Project structure

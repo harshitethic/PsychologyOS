@@ -38,3 +38,9 @@ jobs:
 
       - name: Test health endpoint
         run: npm run test:health
+
+      - name: Test curriculum reseeding and rollback in disposable SQLite
+        run: npm run test:seed-preservation
+
+      - name: Build production application
+        run: npm run build
