@@ -225,6 +225,10 @@ revocation after password changes or account deletion. See the
 [authentication design, reproduction and remaining limits](docs/http-authentication.md).
 Deploying this session-format update requires existing admins to sign in again.
 
+Quiz and mock-exam submissions commit attempts, mastery, revision schedules and
+rewards together. The real HTTP suite exercises database failures and concurrent
+requests; see [transaction guarantees and retry limitations](docs/learning-transactions.md).
+
 Never commit secrets such as:
 
 ```text

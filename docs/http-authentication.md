@@ -54,6 +54,11 @@ cookies over loopback to exercise server authorization, while asserting the
 production `Secure`, `HttpOnly` and `SameSite` attributes. It does not simulate a
 browser's HTTPS cookie transport, cross-site behavior or reverse proxy.
 
+The same HTTP harness also runs six [learning transaction scenarios](learning-transactions.md),
+covering input validation, injected rollback/retry and concurrent quiz/mock
+submissions. Together these are 13 scenarios (14 Node test reports including
+their parent).
+
 ## Deployment and remaining boundaries
 
 No schema migration is needed. Deploying this change invalidates existing admin

@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { db } from "./prisma";
 import { levelForXP } from "./gamification";
 
@@ -16,12 +17,12 @@ export function masteryPercent(scorePercent: number) {
   return 25;
 }
 
-export async function awardXP(userId: string, amount: number) {
-  const user = await db.user.findUnique({ where: { id: userId }, select: { xp: true } });
+export async function awardXP(userId: string, amount: number, client: Prisma.TransactionClient) {
+  const user = await client.user.findUnique({ where: { id: userId }, select: { xp: true } });
   if (!user) throw new Error("User not found");
 
   const xp = Math.max(0, user.xp + amount);
-  return db.user.update({
+  return client.user.update({
     where: { id: userId },
     data: { xp, level: levelForXP(xp), lastActiveAt: new Date() },
     select: { xp: true, level: true },
@@ -70,14 +71,14 @@ export async function upsertTopicResult(userId: string, topicId: string, scorePe
   return progress;
 }
 
-export async function maybePromoteSemester(userId: string) {
-  const user = await db.user.findUnique({
+export async function maybePromoteSemester(userId: string, client: Prisma.TransactionClient) {
+  const user = await client.user.findUnique({
     where: { id: userId },
     select: { semester: true },
   });
   if (!user?.semester) return null;
 
-  const currentSemester = await db.semester.findFirst({
+  const currentSemester = await client.semester.findFirst({
     where: { number: user.semester },
     include: {
       subjects: {
@@ -94,18 +95,18 @@ export async function maybePromoteSemester(userId: string) {
   );
   if (!topicIds.length) return null;
 
-  const mastered = await db.topicProgress.count({
+  const mastered = await client.topicProgress.count({
     where: { userId, topicId: { in: topicIds }, percent: { gte: 100 } },
   });
   if (mastered < topicIds.length) return null;
 
-  const next = await db.semester.findFirst({
+  const next = await client.semester.findFirst({
     where: { number: user.semester + 1, yearId: currentSemester.yearId },
     select: { number: true },
   });
   if (!next) return { completed: true, advanced: false, semester: user.semester };
 
-  await db.user.update({
+  await client.user.update({
     where: { id: userId },
     data: { semester: next.number, lastActiveAt: new Date() },
   });
