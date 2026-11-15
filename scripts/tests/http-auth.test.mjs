@@ -100,6 +100,43 @@ test("production HTTP authentication and learning boundaries", { timeout: 180_00
       assert.equal((await db.user.findUniqueOrThrow({ where: { id: alice.id } })).course, "Original course");
     });
 
+    await t.test("password rotation revokes copied student cookies on every device", async () => {
+      const username = "http-password-rotation";
+      const initialPassword = randomBytes(16).toString("hex");
+      const changedPassword = randomBytes(16).toString("hex");
+      const rotationUser = await db.user.create({ data: {
+        name: username, username, email: `${username}@example.invalid`,
+        passwordHash: await bcrypt.hash(initialPassword, 12),
+        securityHash: "test-fixture",
+      } });
+
+      const login = await post("/api/login", {
+        identifier: username, password: initialPassword,
+      });
+      assert.equal(login.status, 200);
+      const stolenCookie = session(login, "psy_os_session", "lax");
+      assert.equal((await post("/api/profile", {
+        course: "Before rotation",
+      }, stolenCookie)).status, 200);
+
+      await db.user.update({
+        where: { id: rotationUser.id },
+        data: { passwordHash: await bcrypt.hash(changedPassword, 12) },
+      });
+      assert.equal((await post("/api/profile", {
+        course: "Should be rejected",
+      }, stolenCookie)).status, 401);
+      assert.equal((await post("/api/login", {
+        identifier: username, password: initialPassword,
+      })).status, 401);
+      assert.equal((await post("/api/login", {
+        identifier: username, password: changedPassword,
+      })).status, 200);
+      assert.equal((await db.user.findUniqueOrThrow({
+        where: { id: rotationUser.id },
+      })).course, "Before rotation");
+    });
+
     await t.test("student login, profile and learning writes stay bound to the session user", async () => {
       const login = await post("/api/login", { identifier: alice.email, password: studentPassword });
       assert.equal(login.status, 200);
