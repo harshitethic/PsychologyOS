@@ -287,6 +287,18 @@ test("production HTTP authentication and learning boundaries", { timeout: 180_00
       assert.equal((await post("/api/admin/users/action", { id: bob.id, action: "UNBAN" }, adminCookie)).status, 401);
       assert.equal((await db.user.findUniqueOrThrow({ where: { id: bob.id } })).banned, true);
     });
+    await t.test("banned users disappear from the community people directory", async () => {
+      // The admin test above banned bob and preserved alice's session.
+      const response = await fetch(base + "/api/community/people", {
+        headers: { cookie: studentCookie },
+        signal: AbortSignal.timeout(10_000),
+      });
+      assert.equal(response.status, 200);
+      const result = await response.json();
+      assert.ok(result.people.some((person) => person.username === alice.username));
+      assert.ok(!result.people.some((person) => person.username === bob.username));
+      assert.equal((await db.user.findUniqueOrThrow({ where: { id: bob.id } })).banned, true);
+    });
     assert.deepEqual(await db.$queryRawUnsafe("PRAGMA foreign_key_check"), []);
   } finally {
     if (child && child.exitCode === null && child.signalCode === null) {

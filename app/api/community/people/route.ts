@@ -7,6 +7,8 @@ export async function GET() {
   if (!me) return NextResponse.json({ error: "Login required." }, { status: 401 });
 
   const people = await db.user.findMany({
+    // Moderation removes access and public discoverability immediately.
+    where: { banned: false },
     select: { id: true, username: true, course: true, year: true, lastActiveAt: true },
     orderBy: { lastActiveAt: "desc" },
     take: 40,
