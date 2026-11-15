@@ -287,6 +287,28 @@ test("production HTTP authentication and learning boundaries", { timeout: 180_00
       assert.equal((await post("/api/admin/users/action", { id: bob.id, action: "UNBAN" }, adminCookie)).status, 401);
       assert.equal((await db.user.findUniqueOrThrow({ where: { id: bob.id } })).banned, true);
     });
+    await t.test("community history returns the newest 250 posts in chronological order", async () => {
+      const recent = Date.now() - 10 * 60 * 1000;
+      await db.communityMessage.createMany({
+        data: Array.from({ length: 255 }, (_, index) => ({
+          userId: alice.id,
+          content: `message-${String(index).padStart(3, "0")}`,
+          createdAt: new Date(recent + index * 1000),
+        })),
+      });
+      const response = await fetch(base + "/api/community/messages", {
+        headers: { cookie: studentCookie },
+        signal: AbortSignal.timeout(10_000),
+      });
+      assert.equal(response.status, 200);
+      const result = await response.json();
+      assert.equal(result.messages.length, 250);
+      assert.equal(result.messages[0].content, "message-005");
+      assert.equal(result.messages.at(-1).content, "message-254");
+      assert.ok(result.messages.every((message, i) =>
+        i === 0 || message.createdAt >= result.messages[i - 1].createdAt
+      ));
+    });
     assert.deepEqual(await db.$queryRawUnsafe("PRAGMA foreign_key_check"), []);
   } finally {
     if (child && child.exitCode === null && child.signalCode === null) {
