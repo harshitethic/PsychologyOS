@@ -100,6 +100,45 @@ test("production HTTP authentication and learning boundaries", { timeout: 180_00
       assert.equal((await db.user.findUniqueOrThrow({ where: { id: alice.id } })).course, "Original course");
     });
 
+    await t.test("account recovery rejects resets without the saved answer", async () => {
+      const recoveryAnswer = "fixture recovery proof 721";
+      const recoveryUser = await db.user.create({
+        data: {
+          name: "Recovery Fixture", username: "http-recovery",
+          email: "http-recovery@example.invalid",
+          passwordHash: await bcrypt.hash(studentPassword, 12),
+          securityHash: await bcrypt.hash(recoveryAnswer, 12),
+        },
+      });
+      const nextPassword = randomBytes(16).toString("hex");
+      const original = await db.user.findUniqueOrThrow({
+        where: { id: recoveryUser.id }, select: { passwordHash: true },
+      });
+      const base = { identifier: recoveryUser.username, newPassword: nextPassword };
+
+      assert.equal((await post("/api/forgot-password", base)).status, 400);
+      assert.equal((await post("/api/forgot-password", {
+        ...base, answer: "incorrect",
+      })).status, 401);
+      assert.equal((await post("/api/forgot-password", {
+        ...base, identifier: "nonexistent@example.invalid", answer: recoveryAnswer,
+      })).status, 401);
+      assert.equal((await db.user.findUniqueOrThrow({
+        where: { id: recoveryUser.id },
+      })).passwordHash, original.passwordHash, "failed recovery must never mutate a password");
+
+      const updated = await post("/api/forgot-password", {
+        ...base, answer: recoveryAnswer.toUpperCase(),
+      });
+      assert.equal(updated.status, 200);
+      assert.equal((await post("/api/login", {
+        identifier: recoveryUser.username, password: studentPassword,
+      })).status, 401);
+      assert.equal((await post("/api/login", {
+        identifier: recoveryUser.username, password: nextPassword,
+      })).status, 200);
+    });
+
     await t.test("student login, profile and learning writes stay bound to the session user", async () => {
       const login = await post("/api/login", { identifier: alice.email, password: studentPassword });
       assert.equal(login.status, 200);
