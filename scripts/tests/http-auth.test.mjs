@@ -134,6 +134,38 @@ test("production HTTP authentication and learning boundaries", { timeout: 180_00
       user: await db.user.findUniqueOrThrow({ where: { id: alice.id }, select: { xp: true, level: true, semester: true } }),
     });
 
+    await t.test("admin feedback rejects invalid or missing records without changing messages", async () => {
+      const entry = await db.feedback.create({
+        data: { userId: alice.id, message: "Please check the classroom resources." },
+      });
+      for (const invalid of [
+        null, [], {}, { id: entry.id, reply: {} },
+        { id: entry.id, reply: "" },
+        { id: "x".repeat(129), reply: "Hello" },
+      ]) {
+        const response = await post("/api/admin/feedback", invalid, adminCookie);
+        assert.equal(response.status, 400);
+      }
+      const missing = await post("/api/admin/feedback", {
+        id: "no-such-feedback-id", reply: "Unable to locate",
+      }, adminCookie);
+      assert.equal(missing.status, 404);
+      assert.deepEqual(await missing.json(), { error: "Feedback not found." });
+
+      const unchanged = await db.feedback.findUniqueOrThrow({ where: { id: entry.id } });
+      assert.equal(unchanged.status, "OPEN");
+      assert.equal(unchanged.adminReply, null);
+
+      const accepted = await post("/api/admin/feedback", {
+        id: entry.id, reply: "We will check the resources.",
+      }, adminCookie);
+      assert.equal(accepted.status, 200);
+      const saved = await db.feedback.findUniqueOrThrow({ where: { id: entry.id } });
+      assert.equal(saved.status, "REPLIED");
+      assert.equal(saved.adminReply, "We will check the resources.");
+      assert.ok(saved.repliedAt);
+    });
+
     await t.test("invalid answer indexes cannot create attempts or rewards", async () => {
       const before = await learningState();
       for (const selected of [undefined, null, "0", -1, 1.5, question.options.length]) {
