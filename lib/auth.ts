@@ -7,67 +7,48 @@ const MAX_AGE = 60 * 60 * 24 * 30;
 
 function getSecret() {
   const secret = process.env.SESSION_SECRET;
-
-  if (!secret) {
-    throw new Error("SESSION_SECRET is missing from .env");
-  }
-
+  if (!secret) throw new Error("SESSION_SECRET is missing from .env");
   return secret;
 }
 
-function sign(value: string) {
+function sign(value: string, passwordHash: string) {
+  // A password reset rotates the credential hash and immediately invalidates
+  // every outstanding signed cookie, including copies from other devices.
   return createHmac("sha256", getSecret())
-    .update(value)
+    .update(JSON.stringify(["student-session-v2", value, passwordHash]))
     .digest("hex");
 }
 
-function makeToken(id: string, expires: number) {
+function makeToken(id: string, expires: number, passwordHash: string) {
   const payload = `${id}.${expires}`;
-  return `${payload}.${sign(payload)}`;
+  return `${payload}.${sign(payload, passwordHash)}`;
 }
 
 function readToken(token: string) {
   const parts = token.split(".");
-
   if (parts.length !== 3) return null;
-
   const [id, expiresRaw, signature] = parts;
   const expires = Number(expiresRaw);
-
-  if (!id || !Number.isFinite(expires)) return null;
-  if (expires < Date.now()) return null;
-
-  const expected = sign(`${id}.${expires}`);
-
-  try {
-    const a = Buffer.from(signature, "hex");
-    const b = Buffer.from(expected, "hex");
-
-    if (a.length !== b.length || !timingSafeEqual(a, b)) {
-      return null;
-    }
-  } catch {
-    return null;
-  }
-
-  return id;
+  // Validate the format before using the unauthenticated user id for a lookup.
+  if (!id || !Number.isSafeInteger(expires) || expires <= Date.now() ||
+      !/^[a-f0-9]{64}$/.test(signature)) return null;
+  return { id, expires, signature };
 }
 
 export async function getSessionUser() {
   const store = await cookies();
   const token = store.get(COOKIE)?.value;
-
   if (!token) return null;
+  const payload = readToken(token);
+  if (!payload) return null;
 
-  const id = readToken(token);
-
-  if (!id) return null;
-
-  const user = await db.user.findUnique({
-    where: { id },
-  });
-
+  const user = await db.user.findUnique({ where: { id: payload.id } });
   if (!user || user.banned) return null;
+
+  const expected = sign(`${payload.id}.${payload.expires}`, user.passwordHash);
+  if (!timingSafeEqual(Buffer.from(payload.signature, "hex"), Buffer.from(expected, "hex"))) {
+    return null;
+  }
 
   await db.user.update({
     where: { id: user.id },
@@ -78,10 +59,14 @@ export async function getSessionUser() {
 }
 
 export async function setSession(id: string) {
+  const user = await db.user.findUnique({
+    where: { id },
+    select: { passwordHash: true },
+  });
+  if (!user) throw new Error("Cannot create a session for a missing user");
   const store = await cookies();
   const expires = Date.now() + MAX_AGE * 1000;
-
-  store.set(COOKIE, makeToken(id, expires), {
+  store.set(COOKIE, makeToken(id, expires, user.passwordHash), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -92,7 +77,6 @@ export async function setSession(id: string) {
 
 export async function clearSession() {
   const store = await cookies();
-
   store.set(COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",
