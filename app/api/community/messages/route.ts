@@ -8,9 +8,11 @@ export async function GET() {
 
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const messages = await db.communityMessage.findMany({
+  // Fetch the newest 250 messages, not the oldest 250. Otherwise a busy
+  // community permanently hides fresh activity after crossing the limit.
+  const latest = await db.communityMessage.findMany({
     where: { createdAt: { gte: since } },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: 250,
     include: {
       user: { select: { username: true, course: true, year: true } },
@@ -19,7 +21,7 @@ export async function GET() {
   });
 
   return NextResponse.json({
-    messages: messages.map(m => ({
+    messages: latest.reverse().map(m => ({
       id: m.id,
       content: m.content,
       createdAt: m.createdAt.toISOString(),
