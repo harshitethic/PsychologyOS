@@ -116,6 +116,29 @@ test("production HTTP authentication and learning boundaries", { timeout: 180_00
       assert.equal((await post("/api/admin/users/action", { id: bob.id, action: "BAN" }, studentCookie)).status, 401);
     });
 
+    await t.test("topic search rejects unauthenticated and oversized queries", async () => {
+      const unauthorized = await fetch(base + "/api/search?q=memory", {
+        signal: AbortSignal.timeout(10_000),
+      });
+      assert.equal(unauthorized.status, 401);
+
+      const excessive = await fetch(
+        base + "/api/search?q=" + encodeURIComponent("a".repeat(2000)),
+        { headers: { cookie: studentCookie }, signal: AbortSignal.timeout(10_000) }
+      );
+      assert.equal(excessive.status, 400);
+      const control = await fetch(base + "/api/search?q=" + encodeURIComponent("bad\nquery"), {
+        headers: { cookie: studentCookie }, signal: AbortSignal.timeout(10_000),
+      });
+      assert.equal(control.status, 400);
+
+      const normal = await fetch(base + "/api/search?q=memory", {
+        headers: { cookie: studentCookie }, signal: AbortSignal.timeout(10_000),
+      });
+      assert.equal(normal.status, 200);
+      assert.ok(Array.isArray(await normal.json()));
+    });
+
     await t.test("admin login works and banning immediately rejects an existing student session", async () => {
       const login = await post("/api/admin/login", { username: env.ADMIN_USERNAME, password: adminPassword });
       assert.equal(login.status, 200);
